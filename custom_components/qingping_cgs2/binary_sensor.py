@@ -13,18 +13,18 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, entry, async_add_entities):
     mac = entry.data[CONF_MAC]
     async_add_entities([
-        QingpingBinarySensor(mac, "charging", "Зарядка", "battery_charging"),
+        QingpingBinarySensor(mac, "charging", "battery_charging"),
     ])
 
 class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, mac, sensor_type, name, device_class):
+    def __init__(self, mac, sensor_type, device_class):
         self._mac = mac
         self._sensor_type = sensor_type
         self._attr_unique_id = f"qingping_cgs2_{mac}_{sensor_type}"
-        self._attr_name = name
+        self._attr_translation_key = sensor_type # МАГИЯ ПЕРЕВОДА
         self._attr_device_class = device_class
 
         formatted_mac = ":".join(mac[i:i+2] for i in range(0, len(mac), 2))
@@ -49,14 +49,12 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
                 payload = json.loads(msg.payload)
                 msg_type = str(payload.get("type"))
                 
-                # Отправка подтверждения (ACK) устройству, чтобы оно очистило память
                 if msg_type == "17" and payload.get("need_ack") == 1:
                     ack_payload = json.dumps({"type": "17", "ack": 1})
                     topic_down = f"qingping/{self._mac}/down"
                     self.hass.async_create_task(mqtt.async_publish(self.hass, topic_down, ack_payload))
                 
                 if msg_type in ["12", "17"] and "sensorData" in payload:
-                    # Для зарядки всегда смотрим самую свежую запись
                     latest_data = payload["sensorData"][-1] if msg_type == "17" else payload["sensorData"][0]
                     bat_data = latest_data.get("battery", {})
                     status = bat_data.get("status")
