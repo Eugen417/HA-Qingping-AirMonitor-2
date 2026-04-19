@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Qingping CGS2",
+        "data": {
+          "mac": "Device MAC Address (e.g. 582D34FFFFFF)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": { "name": "Temperature" },
+      "humidity": { "name": "Humidity" },
+      "co2": { "name": "CO2" },
+      "noise": { "name": "Noise" },
+      "pm25": { "name": "PM2.5" },
+      "pm10": { "name": "PM10" },
+      "tvoc_index": { "name": "VOC Index" },
+      "battery": { "name": "Battery" },
+      "power_mode": {
+        "name": "Power Mode",
+        "state": {
+          "mains": "AC Power",
+          "battery": "Battery"
+        }
+      }
+    },
+    "binary_sensor": {
+      "charging": {
+        "name": "Charging"
+      }
+    }
+  }
+}
