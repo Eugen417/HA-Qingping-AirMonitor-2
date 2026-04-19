@@ -24,7 +24,7 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
         self._mac = mac
         self._sensor_type = sensor_type
         self._attr_unique_id = f"qingping_cgs2_{mac}_{sensor_type}"
-        self._attr_translation_key = sensor_type # МАГИЯ ПЕРЕВОДА
+        self._attr_translation_key = sensor_type # ПЕРЕВОД
         self._attr_device_class = device_class
 
         formatted_mac = ":".join(mac[i:i+2] for i in range(0, len(mac), 2))
@@ -70,6 +70,6 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
                             self._attr_is_on = is_on
                             self.async_write_ha_state()
             except Exception as e:
-                _LOGGER.error(f"Ошибка MQTT Binary: {e}")
+                _LOGGER.error("MQTT Binary Error: %s", e)
 
         await mqtt.async_subscribe(self.hass, topic_up, message_received)
