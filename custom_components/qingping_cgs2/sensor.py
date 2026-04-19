@@ -11,17 +11,17 @@ from .const import DOMAIN, CONF_MAC
 
 _LOGGER = logging.getLogger(__name__)
 
-# Словарь сенсоров с русскими названиями
+# Словарь: только технические классы и единицы измерения
 SENSORS = {
-    "temperature": {"name": "Температура", "class": "temperature", "unit": "°C"},
-    "humidity": {"name": "Влажность", "class": "humidity", "unit": "%"},
-    "co2": {"name": "CO2", "class": "carbon_dioxide", "unit": "ppm"},
-    "noise": {"name": "Шум", "class": "sound_pressure", "unit": "dB"},
-    "pm25": {"name": "PM2.5", "class": "pm25", "unit": "µg/m³"},
-    "pm10": {"name": "PM10", "class": "pm10", "unit": "µg/m³"},
-    "tvoc_index": {"name": "Индекс VOC", "class": None, "unit": None},
-    "battery": {"name": "Заряд батареи", "class": "battery", "unit": "%", "cat": EntityCategory.DIAGNOSTIC},
-    "power_mode": {"name": "Режим питания", "class": None, "unit": None, "cat": EntityCategory.DIAGNOSTIC},
+    "temperature": {"class": "temperature", "unit": "°C"},
+    "humidity": {"class": "humidity", "unit": "%"},
+    "co2": {"class": "carbon_dioxide", "unit": "ppm"},
+    "noise": {"class": "sound_pressure", "unit": "dB"},
+    "pm25": {"class": "pm25", "unit": "µg/m³"},
+    "pm10": {"class": "pm10", "unit": "µg/m³"},
+    "tvoc_index": {"class": None, "unit": None},
+    "battery": {"class": "battery", "unit": "%", "cat": EntityCategory.DIAGNOSTIC},
+    "power_mode": {"class": None, "unit": None, "cat": EntityCategory.DIAGNOSTIC},
 }
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -36,7 +36,10 @@ class QingpingSensor(RestoreSensor):
         self._mac = mac
         self._sensor_key = sensor_key
         self._attr_unique_id = f"qingping_cgs2_{mac}_{sensor_key}"
-        self._attr_name = sensor_data["name"]
+        
+        # ПЕРЕВОД: Указываем ключ, по которому HA найдет имя в en.json / ru.json
+        self._attr_translation_key = sensor_key 
+        
         self._attr_device_class = sensor_data.get("class")
         self._attr_native_unit_of_measurement = sensor_data.get("unit")
         
@@ -73,13 +76,13 @@ class QingpingSensor(RestoreSensor):
                     if not sensor_data_list:
                         return
                         
-                    # 1. ОБНОВЛЕНИЕ ТЕКУЩЕГО ЭКРАНА (Берем последнюю запись из пакета)
                     latest_data = sensor_data_list[-1] if msg_type == "17" else sensor_data_list[0]
                     
                     if self._sensor_key == "power_mode":
                         status = latest_data.get("battery", {}).get("status")
                         if status is not None:
-                            self._attr_native_value = "от сети" if status == 1 else "от батареи"
+                            # Передаем системный ключ (mains/battery), а HA сам переведет его
+                            self._attr_native_value = "mains" if status == 1 else "battery"
                             self.async_write_ha_state()
                         return
 
@@ -94,7 +97,6 @@ class QingpingSensor(RestoreSensor):
                                     self._attr_native_value = val
                                 self.async_write_ha_state()
 
-                    # 2. ИМПОРТ В СТАТИСТИКУ (Только для типа 17 и числовых данных)
                     if msg_type == "17" and self._sensor_key not in ["power_mode", "battery"]:
                         hourly_buckets = {}
                         
@@ -107,7 +109,7 @@ class QingpingSensor(RestoreSensor):
                                     ts = ts_info.get("value", 0) if isinstance(ts_info, dict) else int(item.get("timestamp", 0))
                                     
                                     if val is not None and ts > 0:
-                                        hour_ts = ts - (ts % 3600)  # Округляем до часа
+                                        hour_ts = ts - (ts % 3600)
                                         hourly_buckets.setdefault(hour_ts, []).append(float(val))
                         
                         if hourly_buckets:
@@ -127,7 +129,7 @@ class QingpingSensor(RestoreSensor):
                             metadata = StatisticMetaData(
                                 has_mean=True,
                                 has_sum=False,
-                                name=f"Qingping CGS2 {self._attr_name}",
+                                name=f"Qingping CGS2 {self._sensor_key.upper()}",
                                 source=DOMAIN,
                                 statistic_id=f"{DOMAIN}:{self._mac.lower()}_{self._sensor_key}",
                                 unit_of_measurement=self._attr_native_unit_of_measurement,
