@@ -137,9 +137,9 @@ class QingpingSensor(RestoreSensor):
                             try:
                                 async_add_external_statistics(self.hass, metadata, statistics)
                             except Exception as err:
-                                _LOGGER.error("Ошибка импорта статистики: %s", err)
+                                _LOGGER.error("Statistics import error: %s", err)
 
             except Exception as e:
-                _LOGGER.error(f"Ошибка MQTT CGS2: {e}")
+                _LOGGER.error("MQTT CGS2 Error: %s", e)
 
         await async_subscribe(self.hass, topic, message_received)
