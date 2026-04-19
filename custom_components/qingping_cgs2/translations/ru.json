@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Добавить Qingping CGS2",
+        "data": {
+          "mac": "MAC адрес устройства (например, 582D34FFFFFF)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Устройство с таким MAC уже добавлено"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": { "name": "Температура" },
+      "humidity": { "name": "Влажность" },
+      "co2": { "name": "CO2" },
+      "noise": { "name": "Шум" },
+      "pm25": { "name": "PM2.5" },
+      "pm10": { "name": "PM10" },
+      "tvoc_index": { "name": "Индекс VOC" },
+      "battery": { "name": "Заряд батареи" },
+      "power_mode": {
+        "name": "Режим питания",
+        "state": {
+          "mains": "От сети",
+          "battery": "От батареи"
+        }
+      }
+    },
+    "binary_sensor": {
+      "charging": {
+        "name": "Зарядка"
+      }
+    }
+  }
+}
