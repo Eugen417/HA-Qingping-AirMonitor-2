@@ -18,6 +18,9 @@
 ## 📦 Установка
 
 ### Вариант 1: Через HACS (Рекомендуется)
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?repository=https%3A%2F%2Fgithub.com%2FEugen417%2FHA-Qingping-AirMonitor-2&owner=%40Eugen417&category=integration)
+
 1. Откройте HACS в вашем Home Assistant.
 2. Нажмите на три точки в правом верхнем углу -> **Пользовательские репозитории** (Custom repositories).
 3. Вставьте ссылку на этот репозиторий: `https://github.com/Eugen417/HA-Qingping-AirMonitor-2`
