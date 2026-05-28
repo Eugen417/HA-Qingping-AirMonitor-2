@@ -1,12 +1,12 @@
 {
   "domain": "qingping_cgs2",
   "name": "Qingping Air Monitor CGS2",
-  "version": "1.0.0",
   "codeowners": ["@Eugen417"],
-  "documentation": "https://github.com/Eugen417/HA-Qingping-AirMonitor-2",
-  "issue_tracker": "https://github.com/Eugen417/HA-Qingping-AirMonitor-2/issues",
   "config_flow": true,
   "dependencies": ["mqtt", "recorder"],
+  "documentation": "https://github.com/Eugen417/HA-Qingping-AirMonitor-2",
   "iot_class": "local_push",
-  "requirements": []
+  "issue_tracker": "https://github.com/Eugen417/HA-Qingping-AirMonitor-2/issues",
+  "requirements": [],
+  "version": "1.0.0"
 }
