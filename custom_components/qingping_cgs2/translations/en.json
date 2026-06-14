@@ -12,6 +12,17 @@
       "already_configured": "Device is already configured"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Device Settings",
+        "data": {
+          "use_history": "Import history to HA Statistics"
+        },
+        "description": "Disabled by default. Enabling this will write accumulated data from device sleep periods into the long-term Home Assistant database."
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "temperature": { "name": "Temperature" },
