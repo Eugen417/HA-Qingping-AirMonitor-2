@@ -24,7 +24,7 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
         self._mac = mac
         self._sensor_type = sensor_type
         self._attr_unique_id = f"qingping_cgs2_{mac}_{sensor_type}"
-        self._attr_translation_key = sensor_type # ПЕРЕВОД
+        self._attr_translation_key = sensor_type # МАГИЯ ПЕРЕВОДА
         self._attr_device_class = device_class
 
         formatted_mac = ":".join(mac[i:i+2] for i in range(0, len(mac), 2))
@@ -49,13 +49,31 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
                 payload = json.loads(msg.payload)
                 msg_type = str(payload.get("type"))
                 
+                # Отправка ACK (Подтверждения)
                 if msg_type == "17" and payload.get("need_ack") == 1:
                     ack_payload = json.dumps({"type": "17", "ack": 1})
                     topic_down = f"qingping/{self._mac}/down"
                     self.hass.async_create_task(mqtt.async_publish(self.hass, topic_down, ack_payload))
                 
                 if msg_type in ["12", "17"] and "sensorData" in payload:
-                    latest_data = payload["sensorData"][-1] if msg_type == "17" else payload["sensorData"][0]
+                    sensor_data_list = payload["sensorData"]
+                    if not sensor_data_list:
+                        return
+
+                    # Безопасная функция для извлечения времени (как в sensor.py)
+                    def get_ts(item):
+                        ts = item.get("timestamp", 0)
+                        if isinstance(ts, dict):
+                            return ts.get("value", 0)
+                        try:
+                            return int(ts)
+                        except (ValueError, TypeError):
+                            return 0
+
+                    # Строгая сортировка от новых к старым и выбор самой свежей записи
+                    sensor_data_list.sort(key=get_ts, reverse=True)
+                    latest_data = sensor_data_list[0]
+                    
                     bat_data = latest_data.get("battery", {})
                     status = bat_data.get("status")
                     level = bat_data.get("value")
@@ -69,6 +87,7 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
                         elif msg_type == "17" and getattr(self, "_attr_is_on", None) is None:
                             self._attr_is_on = is_on
                             self.async_write_ha_state()
+                            
             except Exception as e:
                 _LOGGER.error("MQTT Binary Error: %s", e)
 
