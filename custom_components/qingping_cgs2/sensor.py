@@ -7,11 +7,10 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.const import EntityCategory
 from homeassistant.components.recorder.statistics import async_add_external_statistics, StatisticData, StatisticMetaData
 
-from .const import DOMAIN, CONF_MAC
+from .const import DOMAIN, CONF_MAC, CONF_USE_HISTORY
 
 _LOGGER = logging.getLogger(__name__)
 
-# Словарь: только технические классы и единицы измерения
 SENSORS = {
     "temperature": {"class": "temperature", "unit": "°C"},
     "humidity": {"class": "humidity", "unit": "%"},
@@ -26,18 +25,20 @@ SENSORS = {
 
 async def async_setup_entry(hass, entry, async_add_entities):
     mac = entry.data[CONF_MAC]
-    entities = [QingpingSensor(mac, key, data) for key, data in SENSORS.items()]
+    # Читаем настройку из конфига пользователя
+    use_history = entry.options.get(CONF_USE_HISTORY, False)
+    
+    entities = [QingpingSensor(mac, key, data, use_history) for key, data in SENSORS.items()]
     async_add_entities(entities)
 
 class QingpingSensor(RestoreSensor):
     _attr_has_entity_name = True
 
-    def __init__(self, mac, sensor_key, sensor_data):
+    def __init__(self, mac, sensor_key, sensor_data, use_history):
         self._mac = mac
         self._sensor_key = sensor_key
+        self._use_history = use_history # Запоминаем настройку
         self._attr_unique_id = f"qingping_cgs2_{mac}_{sensor_key}"
-        
-        # ПЕРЕВОД: Указываем ключ, по которому HA найдет имя в en.json / ru.json
         self._attr_translation_key = sensor_key 
         
         self._attr_device_class = sensor_data.get("class")
@@ -76,7 +77,6 @@ class QingpingSensor(RestoreSensor):
                     if not sensor_data_list:
                         return
                     
-                    # Безопасная функция для извлечения времени (защита от разных прошивок)
                     def get_ts(item):
                         ts = item.get("timestamp", 0)
                         if isinstance(ts, dict):
@@ -86,14 +86,12 @@ class QingpingSensor(RestoreSensor):
                         except (ValueError, TypeError):
                             return 0
 
-                    # Строгая сортировка от новых к старым и выбор самой свежей записи
                     sensor_data_list.sort(key=get_ts, reverse=True)
                     latest_data = sensor_data_list[0]
                     
                     if self._sensor_key == "power_mode":
                         status = latest_data.get("battery", {}).get("status")
                         if status is not None:
-                            # Передаем системный ключ (mains/battery), а HA сам переведет его
                             self._attr_native_value = "mains" if status == 1 else "battery"
                             self.async_write_ha_state()
                         return
@@ -109,7 +107,8 @@ class QingpingSensor(RestoreSensor):
                                     self._attr_native_value = val
                                 self.async_write_ha_state()
 
-                    if msg_type == "17" and self._sensor_key not in ["power_mode", "battery"]:
+                    # БЛОК ИСТОРИИ: Запустится только если стоит галочка в настройках!
+                    if self._use_history and msg_type == "17" and self._sensor_key not in ["power_mode", "battery"]:
                         hourly_buckets = {}
                         
                         for item in sensor_data_list:
