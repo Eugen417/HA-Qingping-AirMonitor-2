@@ -75,8 +75,20 @@ class QingpingSensor(RestoreSensor):
                     sensor_data_list = payload["sensorData"]
                     if not sensor_data_list:
                         return
-                        
-                    latest_data = sensor_data_list[-1] if msg_type == "17" else sensor_data_list[0]
+                    
+                    # Безопасная функция для извлечения времени (защита от разных прошивок)
+                    def get_ts(item):
+                        ts = item.get("timestamp", 0)
+                        if isinstance(ts, dict):
+                            return ts.get("value", 0)
+                        try:
+                            return int(ts)
+                        except (ValueError, TypeError):
+                            return 0
+
+                    # Строгая сортировка от новых к старым и выбор самой свежей записи
+                    sensor_data_list.sort(key=get_ts, reverse=True)
+                    latest_data = sensor_data_list[0]
                     
                     if self._sensor_key == "power_mode":
                         status = latest_data.get("battery", {}).get("status")
