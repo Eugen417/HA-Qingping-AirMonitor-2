@@ -2,7 +2,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 
-PLATFORMS = ["sensor", "binary_sensor", "number", "select", "switch", "time", "button"]
+# Оставляем только те платформы, файлы которых реально лежат в папке!
+PLATFORMS = ["sensor", "binary_sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Запуск интеграции."""
