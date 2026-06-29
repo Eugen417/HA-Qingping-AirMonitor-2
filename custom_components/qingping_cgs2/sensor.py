@@ -25,7 +25,6 @@ SENSORS = {
 
 async def async_setup_entry(hass, entry, async_add_entities):
     mac = entry.data[CONF_MAC]
-    # Читаем настройку из конфига пользователя
     use_history = entry.options.get(CONF_USE_HISTORY, False)
     
     entities = [QingpingSensor(mac, key, data, use_history) for key, data in SENSORS.items()]
@@ -37,7 +36,7 @@ class QingpingSensor(RestoreSensor):
     def __init__(self, mac, sensor_key, sensor_data, use_history):
         self._mac = mac
         self._sensor_key = sensor_key
-        self._use_history = use_history # Запоминаем настройку
+        self._use_history = use_history
         self._attr_unique_id = f"qingping_cgs2_{mac}_{sensor_key}"
         self._attr_translation_key = sensor_key 
         
@@ -72,32 +71,32 @@ class QingpingSensor(RestoreSensor):
                 payload = json.loads(msg.payload)
                 msg_type = str(payload.get("type"))
                 
-                if msg_type in ["12", "17"] and "sensorData" in payload:
-                    sensor_data_list = payload["sensorData"]
-                    if not sensor_data_list:
-                        return
+                if msg_type not in ["12", "13", "17"]:
+                    return
                     
-                    def get_ts(item):
-                        ts = item.get("timestamp", 0)
-                        if isinstance(ts, dict):
-                            return ts.get("value", 0)
-                        try:
-                            return int(ts)
-                        except (ValueError, TypeError):
-                            return 0
+                sensor_data_list = payload.get("sensorData")
+                if not sensor_data_list:
+                    return
+                    
+                def get_ts(item):
+                    ts = item.get("timestamp", 0)
+                    if isinstance(ts, dict):
+                        return ts.get("value", 0)
+                    try:
+                        return int(ts)
+                    except (ValueError, TypeError):
+                        return 0
 
-                    sensor_data_list.sort(key=get_ts, reverse=True)
-                    latest_data = sensor_data_list[0]
-                    
+                def update_state(item):
                     if self._sensor_key == "power_mode":
-                        status = latest_data.get("battery", {}).get("status")
+                        status = item.get("battery", {}).get("status")
                         if status is not None:
                             self._attr_native_value = "mains" if status == 1 else "battery"
                             self.async_write_ha_state()
                         return
 
-                    if self._sensor_key in latest_data:
-                        sensor_info = latest_data[self._sensor_key]
+                    if self._sensor_key in item:
+                        sensor_info = item[self._sensor_key]
                         if self._sensor_key == "battery" or sensor_info.get("status") == 0:
                             val = sensor_info.get("value")
                             if val is not None:
@@ -107,10 +106,25 @@ class QingpingSensor(RestoreSensor):
                                     self._attr_native_value = val
                                 self.async_write_ha_state()
 
-                    # БЛОК ИСТОРИИ: Запустится только если стоит галочка в настройках!
-                    if self._use_history and msg_type == "17" and self._sensor_key not in ["power_mode", "battery"]:
-                        hourly_buckets = {}
+                if msg_type in ["12", "13"]:
+                    # Реальное время: берем только самую свежую точку
+                    sensor_data_list.sort(key=get_ts, reverse=True)
+                    update_state(sensor_data_list[0])
+
+                elif msg_type == "17":
+                    if not self._use_history:
+                        # ИСТОРИЯ ОТКЛЮЧЕНА: полностью игнорируем 17 пакет!
+                        return
                         
+                    # ИСТОРИЯ ВКЛЮЧЕНА: выгружаем ВСЕ пропущенные точки на график
+                    # Сортируем от старых к новым, чтобы график зафиксировал все скачки
+                    sensor_data_list.sort(key=get_ts, reverse=False)
+                    for item in sensor_data_list:
+                        update_state(item)
+                        
+                    # Сохраняем фоновый импорт в долгосрочную статистику HA
+                    if self._sensor_key not in ["power_mode", "battery"]:
+                        hourly_buckets = {}
                         for item in sensor_data_list:
                             if self._sensor_key in item:
                                 val_info = item[self._sensor_key]
