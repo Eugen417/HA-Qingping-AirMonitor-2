@@ -1,11 +1,20 @@
 import json
 import logging
 from datetime import datetime, timezone
-from homeassistant.components.sensor import SensorEntity, RestoreSensor
 from homeassistant.components.mqtt import async_subscribe
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.components.recorder.models import (
+    StatisticData,
+    StatisticMeanType,
+    StatisticMetaData,
+)
+from homeassistant.components.recorder.statistics import async_add_external_statistics
+from homeassistant.components.sensor import (
+    UNIT_CONVERTERS,
+    RestoreSensor,
+    SensorEntity,
+)
 from homeassistant.const import EntityCategory
-from homeassistant.components.recorder.statistics import async_add_external_statistics, StatisticData, StatisticMetaData
+from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN, CONF_MAC, CONF_USE_HISTORY
 
@@ -151,12 +160,18 @@ class QingpingSensor(RestoreSensor):
                                     mean=mean_val
                                 ))
                             
+                            unit_converter = UNIT_CONVERTERS.get(self._attr_device_class)
+                            unit_class = (
+                                unit_converter.UNIT_CLASS if unit_converter else None
+                            )
                             metadata = StatisticMetaData(
                                 has_mean=True,
+                                mean_type=StatisticMeanType.ARITHMETIC,
                                 has_sum=False,
                                 name=f"Qingping CGS2 {self._sensor_key.upper()}",
                                 source=DOMAIN,
                                 statistic_id=f"{DOMAIN}:{self._mac.lower()}_{self._sensor_key}",
+                                unit_class=unit_class,
                                 unit_of_measurement=self._attr_native_unit_of_measurement,
                             )
                             try:
@@ -167,4 +182,6 @@ class QingpingSensor(RestoreSensor):
             except Exception as e:
                 _LOGGER.error("MQTT CGS2 Error: %s", e)
 
-        await async_subscribe(self.hass, topic, message_received)
+        self.async_on_remove(
+            await async_subscribe(self.hass, topic, message_received)
+        )

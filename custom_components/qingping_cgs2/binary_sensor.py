@@ -1,10 +1,10 @@
 import json
 import logging
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.components.sensor import RestoreEntity
 from homeassistant.components import mqtt
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.const import EntityCategory
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DOMAIN, CONF_MAC
 
@@ -91,4 +91,6 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
             except Exception as e:
                 _LOGGER.error("MQTT Binary Error: %s", e)
 
-        await mqtt.async_subscribe(self.hass, topic_up, message_received)
+        self.async_on_remove(
+            await mqtt.async_subscribe(self.hass, topic_up, message_received)
+        )
