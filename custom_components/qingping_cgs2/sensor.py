@@ -11,7 +11,9 @@ from homeassistant.components.recorder.statistics import async_add_external_stat
 from homeassistant.components.sensor import (
     UNIT_CONVERTERS,
     RestoreSensor,
+    SensorDeviceClass,
     SensorEntity,
+    SensorStateClass,
 )
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -21,15 +23,21 @@ from .const import DOMAIN, CONF_MAC, CONF_USE_HISTORY
 _LOGGER = logging.getLogger(__name__)
 
 SENSORS = {
-    "temperature": {"class": "temperature", "unit": "°C"},
-    "humidity": {"class": "humidity", "unit": "%"},
-    "co2": {"class": "carbon_dioxide", "unit": "ppm"},
-    "noise": {"class": "sound_pressure", "unit": "dB"},
-    "pm25": {"class": "pm25", "unit": "µg/m³"},
-    "pm10": {"class": "pm10", "unit": "µg/m³"},
-    "tvoc_index": {"class": None, "unit": None},
-    "battery": {"class": "battery", "unit": "%", "cat": EntityCategory.DIAGNOSTIC},
-    "power_mode": {"class": None, "unit": None, "cat": EntityCategory.DIAGNOSTIC},
+    "temperature": {"class": SensorDeviceClass.TEMPERATURE, "unit": "°C", "icon": "mdi:thermometer"},
+    "humidity": {"class": SensorDeviceClass.HUMIDITY, "unit": "%", "icon": "mdi:water-percent"},
+    "co2": {"class": SensorDeviceClass.CO2, "unit": "ppm", "icon": "mdi:molecule-co2"},
+    "noise": {"class": SensorDeviceClass.SOUND_PRESSURE, "unit": "dB", "icon": "mdi:volume-high"},
+    "pm25": {"class": SensorDeviceClass.PM25, "unit": "µg/m³", "icon": "mdi:blur"},
+    "pm10": {"class": SensorDeviceClass.PM10, "unit": "µg/m³", "icon": "mdi:blur-linear"},
+    "tvoc_index": {"class": None, "unit": None, "icon": "mdi:air-filter"},
+    "battery": {"class": SensorDeviceClass.BATTERY, "unit": "%", "cat": EntityCategory.DIAGNOSTIC},
+    "power_mode": {
+        "class": SensorDeviceClass.ENUM,
+        "unit": None,
+        "cat": EntityCategory.DIAGNOSTIC,
+        "options": ["mains", "battery"],
+        "icon": "mdi:power-plug",
+    },
 }
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -51,9 +59,13 @@ class QingpingSensor(RestoreSensor):
         
         self._attr_device_class = sensor_data.get("class")
         self._attr_native_unit_of_measurement = sensor_data.get("unit")
+        if "icon" in sensor_data:
+            self._attr_icon = sensor_data["icon"]
+        if "options" in sensor_data:
+            self._attr_options = sensor_data["options"]
         
         if sensor_key not in ["power_mode"]:
-            self._attr_state_class = "measurement"
+            self._attr_state_class = SensorStateClass.MEASUREMENT
         
         if "cat" in sensor_data:
             self._attr_entity_category = sensor_data["cat"]
@@ -70,8 +82,9 @@ class QingpingSensor(RestoreSensor):
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
         last_state = await self.async_get_last_sensor_data()
-        if last_state:
-            self._attr_native_value = last_state.native_value
+        if last_state and last_state.native_value is not None:
+            if self._sensor_key != "power_mode" or last_state.native_value in ("mains", "battery"):
+                self._attr_native_value = last_state.native_value
 
         topic = f"qingping/{self._mac}/up"
 

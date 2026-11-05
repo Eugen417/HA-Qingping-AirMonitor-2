@@ -1,0 +1,46 @@
+{
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "default": "mdi:thermometer"
+      },
+      "humidity": {
+        "default": "mdi:water-percent"
+      },
+      "co2": {
+        "default": "mdi:molecule-co2"
+      },
+      "noise": {
+        "default": "mdi:volume-high"
+      },
+      "pm25": {
+        "default": "mdi:blur"
+      },
+      "pm10": {
+        "default": "mdi:blur-linear"
+      },
+      "tvoc_index": {
+        "default": "mdi:air-filter"
+      },
+      "battery": {
+        "default": "mdi:battery"
+      },
+      "power_mode": {
+        "default": "mdi:power-plug",
+        "state": {
+          "mains": "mdi:power-plug",
+          "battery": "mdi:battery-outline"
+        }
+      }
+    },
+    "binary_sensor": {
+      "charging": {
+        "default": "mdi:battery-charging",
+        "state": {
+          "on": "mdi:battery-charging",
+          "off": "mdi:battery"
+        }
+      }
+    }
+  }
+}

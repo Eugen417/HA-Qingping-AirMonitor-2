@@ -9,8 +9,10 @@ class QingpingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
-            # Очищаем MAC от двоеточий и переводим в верхний регистр
-            mac = user_input[CONF_MAC].upper().replace(":", "")
+            # Очищаем MAC от двоеточий/дефисов и переводим в верхний регистр
+            mac = user_input[CONF_MAC].strip().upper().replace(":", "").replace("-", "")
+            await self.async_set_unique_id(mac)
+            self._abort_if_unique_id_configured()
             return self.async_create_entry(
                 title=f"Air Monitor ({mac})", 
                 data={CONF_MAC: mac},
