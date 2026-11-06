@@ -42,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def send_realtime_command(_now=None):
         """Отправка команды 3.2 Set Realtime Data Reporting Interval (type 12)."""
-        if realtime_interval <= 2:
+        if realtime_interval < 3:
             return
         payload = json.dumps({
             "type": "12",
@@ -65,20 +65,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         msg_type = str(payload.get("type"))
 
         # 2.2 Device Reports Historical Data -> Server Response Type 18
-        if msg_type == "17" and payload.get("need_ack") == 1:
-            msg_id = payload.get("id", 0)
-            ack_payload = json.dumps({
-                "ack_id": msg_id,
-                "code": 0,
-                "desc": "",
-                "timestamp": int(time.time()),
-                "type": "18",
-            })
-            hass.async_create_task(mqtt.async_publish(hass, topic_down, ack_payload))
+        if msg_type == "17":
+            if payload.get("need_ack") == 1:
+                msg_id = payload.get("id", 0)
+                ack_payload = json.dumps({
+                    "ack_id": msg_id,
+                    "code": 0,
+                    "desc": "",
+                    "timestamp": int(time.time()),
+                    "type": "18",
+                })
+                hass.async_create_task(mqtt.async_publish(hass, topic_down, ack_payload))
 
-            # Если включен режим реального времени, а монитор прислал только фоновый пакет 17,
-            # обновляем подписку на realtime (не чаще раза в 60 секунд)
-            if realtime_interval > 2 and (time.time() - entry_data["last_realtime_req"]) > 60:
+            # В момент прихода пакета 17 монитор гарантированно на связи (раз в 15 минут),
+            # поэтому сразу отправляем команду активации realtime (начиная с 3 сек)
+            if realtime_interval >= 3:
                 hass.async_create_task(send_realtime_command())
 
         # Обновление версии прошивки (version) в карточке устройства Home Assistant
@@ -95,7 +96,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unsub_mqtt = await mqtt.async_subscribe(hass, topic_up, handle_device_message)
     entry.async_on_unload(unsub_mqtt)
 
-    if realtime_interval > 2:
+    if realtime_interval >= 3:
         hass.async_create_task(send_realtime_command())
         entry.async_on_unload(
             async_track_time_interval(
