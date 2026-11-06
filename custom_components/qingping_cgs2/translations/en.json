@@ -17,10 +17,10 @@
       "init": {
         "title": "Device Settings",
         "data": {
-          "realtime_interval": "Realtime reporting interval Type 12 (sec, 0 = disabled, >2 = enabled)",
+          "realtime_interval": "Realtime update interval (in seconds)",
           "use_history": "Import history (Type 17) to HA external statistics"
         },
-        "description": "When realtime_interval is 0, the monitor reports data on the schedule set at developer.qingping.co (e.g., every 15 minutes). Setting a value > 2 (e.g., 60 sec) enables realtime data reporting (Type 12)."
+        "description": "If set to 0, realtime mode is disabled (data arrives every 15 minutes as scheduled on developer.qingping.co). If you enter a value greater than 2 (e.g., from 3 to 60), that number sets the realtime update interval in seconds."
       }
     }
   },
