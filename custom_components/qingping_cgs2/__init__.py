@@ -42,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def send_realtime_command(_now=None):
         """Отправка команды 3.2 Set Realtime Data Reporting Interval (type 12)."""
-        if realtime_interval < 3:
+        if realtime_interval <= 0:
             return
         payload = json.dumps({
             "type": "12",
@@ -78,8 +78,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass.async_create_task(mqtt.async_publish(hass, topic_down, ack_payload))
 
             # В момент прихода пакета 17 монитор гарантированно на связи (раз в 15 минут),
-            # поэтому сразу отправляем команду активации realtime (начиная с 3 сек)
-            if realtime_interval >= 3:
+            # поэтому сразу отправляем команду активации realtime
+            if realtime_interval > 0:
                 hass.async_create_task(send_realtime_command())
 
         # Обновление версии прошивки (version) в карточке устройства Home Assistant
@@ -96,7 +96,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unsub_mqtt = await mqtt.async_subscribe(hass, topic_up, handle_device_message)
     entry.async_on_unload(unsub_mqtt)
 
-    if realtime_interval >= 3:
+    if realtime_interval > 0:
         hass.async_create_task(send_realtime_command())
         entry.async_on_unload(
             async_track_time_interval(

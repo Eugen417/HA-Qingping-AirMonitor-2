@@ -58,10 +58,7 @@ class QingpingOptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema({
                 vol.Optional(
                     CONF_REALTIME_INTERVAL, default=realtime_interval
-                ): vol.All(
-                    vol.Coerce(int),
-                    vol.Any(0, vol.Range(min=3, max=3600)),
-                ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=3600)),
                 vol.Optional(CONF_USE_HISTORY, default=use_history): bool,
             })
         )

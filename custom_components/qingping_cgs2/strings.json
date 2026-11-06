@@ -17,10 +17,10 @@
       "init": {
         "title": "Device Settings",
         "data": {
-          "realtime_interval": "Realtime update interval, sec (0 = disabled, from 3 to 3600)",
+          "realtime_interval": "Realtime update interval, sec (0 = disabled)",
           "use_history": "Import history (Type 17) to HA external statistics"
         },
-        "description": "All data is transmitted locally over MQTT. If set to 0, realtime mode is disabled and the monitor sends data at its base interval (every 15 minutes by default). The down topic command ({\"type\": \"12\", \"up_itvl\": \"3\", \"duration\": \"3600\"}) is sent starting from value 3 (values 1 and 2 are not allowed). For example, 3–60 sets the update interval in seconds. Changes take effect within 0 to 15 minutes (on the monitor's next communication cycle)."
+        "description": "All data is transmitted locally over MQTT. If set to 0, realtime mode is disabled and the monitor sends data at its base interval (every 15 minutes by default). Setting a value greater than 0 (e.g., 2–60) sets the update interval in seconds (sends {\"type\": \"12\", \"up_itvl\": \"...\", \"duration\": \"3600\"} to the down topic). Changes take effect within 0 to 15 minutes (on the monitor's next communication cycle)."
       }
     }
   },
