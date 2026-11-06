@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components import mqtt
 from homeassistant.const import EntityCategory
@@ -23,6 +24,7 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
     def __init__(self, mac, sensor_type, device_class):
         self._mac = mac
         self._sensor_type = sensor_type
+        self._last_ts = 0
         self._attr_unique_id = f"qingping_cgs2_{mac}_{sensor_type}"
         self._attr_translation_key = sensor_type # МАГИЯ ПЕРЕВОДА
         self._attr_device_class = device_class
@@ -49,9 +51,15 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
                 payload = json.loads(msg.payload)
                 msg_type = str(payload.get("type"))
                 
-                # Отправка ACK (Подтверждения)
+                # Отправка ACK (Подтверждения по официальному протоколу Qingping: type 18 + ack_id)
                 if msg_type == "17" and payload.get("need_ack") == 1:
-                    ack_payload = json.dumps({"type": "17", "ack": 1})
+                    ack_payload = json.dumps({
+                        "ack_id": payload.get("id", 0),
+                        "code": 0,
+                        "desc": "",
+                        "timestamp": int(time.time()),
+                        "type": "18",
+                    })
                     topic_down = f"qingping/{self._mac}/down"
                     self.hass.async_create_task(mqtt.async_publish(self.hass, topic_down, ack_payload))
                 
@@ -70,9 +78,14 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
                         except (ValueError, TypeError):
                             return 0
 
-                    # Строгая сортировка от новых к старым и выбор самой свежей записи
+                    # Строгая сортировка от новых к старым и выбор только самой свежей записи
                     sensor_data_list.sort(key=get_ts, reverse=True)
                     latest_data = sensor_data_list[0]
+                    latest_ts = get_ts(latest_data)
+                    if latest_ts > 0 and latest_ts < self._last_ts:
+                        return
+                    if latest_ts > self._last_ts:
+                        self._last_ts = latest_ts
                     
                     bat_data = latest_data.get("battery", {})
                     status = bat_data.get("status")
@@ -80,13 +93,8 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
 
                     if status is not None:
                         is_on = (status == 1 and level is not None and level < 99)
-                        
-                        if msg_type == "12":
-                            self._attr_is_on = is_on
-                            self.async_write_ha_state()
-                        elif msg_type == "17" and getattr(self, "_attr_is_on", None) is None:
-                            self._attr_is_on = is_on
-                            self.async_write_ha_state()
+                        self._attr_is_on = is_on
+                        self.async_write_ha_state()
                             
             except Exception as e:
                 _LOGGER.error("MQTT Binary Error: %s", e)

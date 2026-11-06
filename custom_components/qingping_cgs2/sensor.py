@@ -54,6 +54,7 @@ class QingpingSensor(RestoreSensor):
         self._mac = mac
         self._sensor_key = sensor_key
         self._use_history = use_history
+        self._last_ts = 0
         self._attr_unique_id = f"qingping_cgs2_{mac}_{sensor_key}"
         self._attr_translation_key = sensor_key 
         
@@ -128,23 +129,18 @@ class QingpingSensor(RestoreSensor):
                                     self._attr_native_value = val
                                 self.async_write_ha_state()
 
-                if msg_type in ["12", "13"]:
-                    # Реальное время: берем только самую свежую точку
-                    sensor_data_list.sort(key=get_ts, reverse=True)
-                    update_state(sensor_data_list[0])
+                # Всегда сортируем от новых к старым и обновляем текущее состояние
+                # ТОЛЬКО самой свежей точкой (чтобы не засорять историю HA старым буфером)
+                sensor_data_list.sort(key=get_ts, reverse=True)
+                latest_item = sensor_data_list[0]
+                latest_ts = get_ts(latest_item)
+                if latest_ts == 0 or latest_ts >= self._last_ts:
+                    if latest_ts > self._last_ts:
+                        self._last_ts = latest_ts
+                    update_state(latest_item)
 
-                elif msg_type == "17":
-                    if not self._use_history:
-                        # ИСТОРИЯ ОТКЛЮЧЕНА: полностью игнорируем 17 пакет!
-                        return
-                        
-                    # ИСТОРИЯ ВКЛЮЧЕНА: выгружаем ВСЕ пропущенные точки на график
-                    # Сортируем от старых к новым, чтобы график зафиксировал все скачки
-                    sensor_data_list.sort(key=get_ts, reverse=False)
-                    for item in sensor_data_list:
-                        update_state(item)
-                        
-                    # Сохраняем фоновый импорт в долгосрочную статистику HA
+                if msg_type == "17" and self._use_history:
+                    # Сохраняем фоновый импорт в долгосрочную статистику HA (без перезаписи текущих states)
                     if self._sensor_key not in ["power_mode", "battery"]:
                         hourly_buckets = {}
                         for item in sensor_data_list:
