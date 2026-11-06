@@ -112,9 +112,10 @@ class QingpingSensor(RestoreSensor):
 
                 def update_state(item):
                     if self._sensor_key == "power_mode":
+                        # По документации Qingping: 0 discharging, 1 charging, 2 fully charged
                         status = item.get("battery", {}).get("status")
                         if status is not None:
-                            self._attr_native_value = "mains" if status == 1 else "battery"
+                            self._attr_native_value = "mains" if status in (1, 2) else "battery"
                             self.async_write_ha_state()
                         return
 
@@ -123,6 +124,8 @@ class QingpingSensor(RestoreSensor):
                         if self._sensor_key == "battery" or sensor_info.get("status") == 0:
                             val = sensor_info.get("value")
                             if val is not None:
+                                if self._sensor_key in ("pm25", "pm10") and val >= 99999:
+                                    return
                                 if self._sensor_key in ["temperature", "humidity"]:
                                     self._attr_native_value = round(float(val), 1)
                                 else:
@@ -148,6 +151,8 @@ class QingpingSensor(RestoreSensor):
                                 val_info = item[self._sensor_key]
                                 if val_info.get("status") == 0:
                                     val = val_info.get("value")
+                                    if self._sensor_key in ("pm25", "pm10") and val is not None and val >= 99999:
+                                        continue
                                     ts_info = item.get("timestamp", {})
                                     ts = ts_info.get("value", 0) if isinstance(ts_info, dict) else int(item.get("timestamp", 0))
                                     

@@ -1,6 +1,5 @@
 import json
 import logging
-import time
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components import mqtt
 from homeassistant.const import EntityCategory
@@ -51,19 +50,7 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
                 payload = json.loads(msg.payload)
                 msg_type = str(payload.get("type"))
                 
-                # Отправка ACK (Подтверждения по официальному протоколу Qingping: type 18 + ack_id)
-                if msg_type == "17" and payload.get("need_ack") == 1:
-                    ack_payload = json.dumps({
-                        "ack_id": payload.get("id", 0),
-                        "code": 0,
-                        "desc": "",
-                        "timestamp": int(time.time()),
-                        "type": "18",
-                    })
-                    topic_down = f"qingping/{self._mac}/down"
-                    self.hass.async_create_task(mqtt.async_publish(self.hass, topic_down, ack_payload))
-                
-                if msg_type in ["12", "17"] and "sensorData" in payload:
+                if msg_type in ["12", "13", "17"] and "sensorData" in payload:
                     sensor_data_list = payload["sensorData"]
                     if not sensor_data_list:
                         return
@@ -92,7 +79,8 @@ class QingpingBinarySensor(RestoreEntity, BinarySensorEntity):
                     level = bat_data.get("value")
 
                     if status is not None:
-                        is_on = (status == 1 and level is not None and level < 99)
+                        # По документации Qingping: 0 discharging, 1 charging, 2 fully charged
+                        is_on = (status == 1 and (level is None or level < 100))
                         self._attr_is_on = is_on
                         self.async_write_ha_state()
                             

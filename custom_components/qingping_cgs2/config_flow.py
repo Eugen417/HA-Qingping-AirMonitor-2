@@ -1,7 +1,13 @@
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from .const import DOMAIN, CONF_MAC, CONF_USE_HISTORY
+from .const import (
+    CONF_MAC,
+    CONF_REALTIME_INTERVAL,
+    CONF_USE_HISTORY,
+    DEFAULT_REALTIME_INTERVAL,
+    DOMAIN,
+)
 
 class QingpingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Настройка интеграции через UI."""
@@ -16,7 +22,10 @@ class QingpingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title=f"Air Monitor ({mac})", 
                 data={CONF_MAC: mac},
-                options={CONF_USE_HISTORY: False} # ПО УМОЛЧАНИЮ ВЫКЛЮЧЕНО
+                options={
+                    CONF_USE_HISTORY: False,
+                    CONF_REALTIME_INTERVAL: DEFAULT_REALTIME_INTERVAL,
+                }
             )
 
         # Рисуем форму установки
@@ -39,12 +48,17 @@ class QingpingOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        # Берем текущее значение
         use_history = self.config_entry.options.get(CONF_USE_HISTORY, False)
+        realtime_interval = self.config_entry.options.get(
+            CONF_REALTIME_INTERVAL, DEFAULT_REALTIME_INTERVAL
+        )
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
+                vol.Optional(
+                    CONF_REALTIME_INTERVAL, default=realtime_interval
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=3600)),
                 vol.Optional(CONF_USE_HISTORY, default=use_history): bool,
             })
         )
